@@ -1,0 +1,132 @@
+---
+title: "How to use DiagrammeR+Mermaid?"
+subtitle: "Short answer: Don't!"
+author: "José R. Ferrer-Paris"
+date: 01 Jul 2024
+categories:
+ - Mermaid.js
+ - Diagrams
+execute: 
+  echo: true
+---
+
+## What I want to do
+
+I want to use the R package `DiagrammeR` to customise a Mermaid.js diagram.
+
+## Challenges
+
+I learned to use Mermaid.js to embed reproducible diagrams in quarto documents. Mermaid.js in under active development, syntax and features change from version to version. 
+
+Usually Mermaid code can be embeded in a quarto document like this:
+
+```{mermaid}
+%%| echo: fenced
+%%| label: fig-mermaid
+%%| fig-cap: A mermaid graph
+graph LR
+  A[qmd] --> B(Knitr)
+  A[qmd] --> C(Jupyter)
+  B(Knitr) --> D[md]
+  C(Jupyter) --> D[md]
+  D[md] --> E(pandoc)
+  E(pandoc) --> F(HTML)
+  E(pandoc) --> G(PDF)
+  E(pandoc) --> H(Word)
+  E(pandoc) --> I{and more}
+```
+
+:::{.aside}
+This is the same diagramm code as the figure shown [here](/mark-updown.qmd).
+:::
+
+However, when loading the library `DiagrammeR` in a document, it will call a fixed version of mermaid. This means that it is stuck with a slightly outdated syntax, and that usually means sacrificing some features. Mixing `mermaid` code blocks and diagrams created within R code blocks in the same document will have unexpected results.
+
+I am slightly inclined _against_ using `DiagrammeR` for mermaid plots, but I am still testing options.
+
+## Sources
+
+- https://rdrr.io/cran/DiagrammeR/src/R/mermaid.R
+- https://www.reddit.com/r/github/comments/100mbuh/mermaid_diagram_not_working/
+- https://stackoverflow.com/questions/58689080/mermaid-diagrams-not-rendering-correctly-in-rmarkdown-xaringan-presentations
+
+## Steps in R
+
+Load the libraries:
+
+```{r libimport}
+library(DiagrammeR)
+library(widgetframe)
+```
+
+```{r}
+example1 <- DiagrammeR::mermaid("
+graph LR;
+A((Orange)) --> B((Grey));
+
+classDef orange fill:#f96;
+classDef grey fill:#d3d3d3;
+class A orange;
+class B grey;
+")
+
+```
+
+```{r}
+#| fig-cap: |
+#|   How Quarto orchestrates rendering of documents: start with 
+#|   a qmd file, use the Knitr or Jupyter engine to perform the 
+#|   computations and convert it to an md file, then use Pandoc 
+#|   to convert to various file formats including HTML, PDF, 
+#|   and Word.
+example2 <- DiagrammeR("
+graph LR
+  A[qmd] --> B(Knitr)
+  A[qmd] --> C(Jupyter)
+  B(Knitr) --> D[md]
+  C(Jupyter) --> D[md]
+  D[md] --> E(pandoc)
+  E(pandoc) --> F(HTML)
+  E(pandoc) --> G(PDF)
+  E(pandoc) --> H(Word)
+  E(pandoc) --> I{and more}"
+     )
+```
+
+
+```{r attempt2}
+example3 <- mermaid("
+sequenceDiagram
+  participant ParticipantA
+  participant ParticipantB
+  participant ParticipantC
+  ParticipantA->>ParticipantB: I want something
+  ParticipantB->>ParticipantC: he want something
+  ParticipantC->>ParticipantB: here is something
+  ParticipantB->>ParticipantA: he got something for you
+  ", height = '100%', width = '100%')
+```
+
+
+Direct output (no `<iframe>`):
+
+```{r}
+#| fig-height: 2
+example1
+# same as: widgetframe::frameableWidget(example1)
+```
+
+With an `<iframe>` created with `widgetframe`:
+```{r}
+#| fig-height: 2
+widgetframe::frameWidget(example1, height=200)
+```
+
+
+```{r}
+widgetframe::frameWidget(example2, height=300)
+```
+
+```{r}
+widgetframe::frameWidget(example3, height=500)
+```

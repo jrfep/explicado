@@ -1,0 +1,12 @@
+---
+title: "Website frameworks"
+subtitle: "How to build (static) websites"
+---
+
+Here some instruction for creating websites using:
+
+- Hugo: <https://gohugo.io>
+- Blogdown
+- Rmarkdown
+- Quarto
+- Docusaurus

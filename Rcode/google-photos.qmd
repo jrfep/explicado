@@ -1,0 +1,324 @@
+---
+title: "Google photos"
+author: "José R. Ferrer-Paris"
+date: 01 Jul 2024
+image: img/ADX0-Desayuno-en-Oaxaca.jpg
+categories:
+ - Google cloud
+ - Photos
+ - magick
+ - Mexico
+execute: 
+  echo: true
+---
+
+## What I want to do
+
+My aim is to create a local copy of my photos in Google Photos to be able to use them in my Quarto Website. I choose to use R for this.
+
+## Challenges
+
+This is the kind of thing that works great when it works, but that can enter an infinite loop of trial-and-error if you miss a tiny, vital detail. 
+
+Sometimes the procedure has been described in detail in older posts, but specific configurations or methods have changed since. So it is important to understand what is needed and to adapt the steps according to the most recent documentation.
+
+## Sources
+
+My code is based on on [some blogs](https://www.listendata.com/2021/10/r-wrapper-for-google-photos-api.html), [medium posts](https://max-coding.medium.com/loading-photos-and-metadata-using-google-photos-api-with-python-7fb5bd8886ef) and [stack overflow posts](https://stackoverflow.com/questions/50573196/access-google-photo-api-with-python-using-google-api-python-client) describing the procedure for R and Python.
+
+## Set-up Google authentication
+
+These are the basic steps:
+
+1. create a project in [google cloud](https://console.cloud.google.com/), and open the `APIS y servicios` tab (or equivalent in your language) 
+2. enable Photos Library API (not sure if this is relevant here),
+3. configure a simple consent page (`Pantalla de consentimiento`), publishing status can be "Testing",
+4. create an OAuth 2.0 client ID and download the json file.
+5. add `GC_PROJECT_EMAIL` and `GC_PROJECT_CRED_JSON` to a `.Renviron` file
+
+
+## Steps in R
+
+### Load the libraries
+
+```{r}
+library(gargle)
+library(dplyr)
+library(jsonlite)
+library(httr)
+library(foreach)
+library(stringr)
+library(magick)
+```
+
+### Read environment variables
+
+Make sure to update the `.Renviron` file, then you can (re-)load it in the current R session with:
+
+```{r}
+readRenviron("~/.Renviron")
+```
+
+### Read credentials and authenticate
+
+The credentials are in a json file in a private folder, the environment variable contains this location. Now we can check if the file exists, and read it:
+
+```{r}
+cred_json <- Sys.getenv("GC_PROJECT_CRED_JSON")
+if (!file.exists(cred_json)) {
+  stop("credentials not found, please update Renviron file")
+} else {
+  clnt <- gargle_oauth_client_from_json(path=cred_json)
+}
+```
+
+You can print the client information with:
+
+
+```{r}
+#| eval: false
+print(clnt)
+```
+
+:::{.aside}
+Output not shown
+:::
+
+Now fetch the token: 
+
+```{r}
+tkn <- gargle2.0_token(
+  email = Sys.getenv("GC_PROJECT_EMAIL"),
+  client = clnt,
+  scope = c("https://www.googleapis.com/auth/photoslibrary.readonly",
+            "https://www.googleapis.com/auth/photoslibrary.sharing")
+)
+```
+
+:::{.callout-warning}
+# This step is important! 
+In an interactive session, this will open a tab/window in the browser to complete authentication and confirm permissions for the app. It might use information in the cache, if available.
+
+If this is run non-interactively, it will try to use the information in the cache, but will fail if this info is stale.
+:::
+
+Final steps of authentication:
+
+```{r}
+k <- token_fetch(token=tkn)
+authorization = paste('Bearer', k$credentials$access_token)
+```
+
+### Album information
+
+Now we can get the album information using function `GET`:
+
+```{r}
+
+getalbum <-
+  GET("https://photoslibrary.googleapis.com/v1/albums",
+      add_headers(
+        'Authorization' = authorization,
+        'Accept'  = 'application/json'),
+      query = list("pageSize" = 50)) |> 
+  content( as = "text", encoding = "UTF-8") |>
+  fromJSON() 
+```
+
+Here I use `select` to show only two columns:
+
+```{r}
+knitr::kable(
+    select(
+        getalbum$albums, 
+        c("title", "mediaItemsCount")))
+```
+
+If there are multiple pages per query, it is possible to use the `nextPageToken` to paginate the results:
+
+```{r}
+
+if (!is.null(getalbum$nextPageToken)) {
+  getalbum2 <-
+    GET("https://photoslibrary.googleapis.com/v1/albums",
+      add_headers(
+        'Authorization' = authorization,
+        'Accept'  = 'application/json'),
+      query = list("pageToken" = getalbum$nextPageToken)) |>
+    content(as = "text", encoding = "UTF-8") |>
+    fromJSON() 
+}
+```
+
+### Fotos in an album
+
+If we want to pull information from one album:
+
+```{r}
+aID <- filter(getalbum$albums,
+    title %in% c("Lugares - México")) |>
+    pull(id)
+
+dts <-  POST("https://photoslibrary.googleapis.com/v1/mediaItems:search",
+      add_headers(
+        'Authorization' = authorization,
+        'Accept'  = 'application/json'),
+      body = list("albumId" = aID,
+                  "pageSize" = 50),
+      encode = "json"
+      ) |> 
+    content( as = "text", encoding = "UTF-8") |>
+    fromJSON( flatten = TRUE) |> 
+    data.frame()
+```
+
+Let's have a glimpse at the data frame
+```{r}
+glimpse(dts)
+```
+
+We downloaded the information for all fotos. The baseUrl links are useful during the R session, but are not good for sharing the links to the photos. They are random urls and become defunct after the session is closed. 
+
+For example, this will display the image using the baseUrl when rendering this page, but will eventually disappear:
+
+```{r}
+#| fenced: true
+#| output: asis
+cat(sprintf("<img src='%s'/>", 
+    dts[23,"mediaItems.baseUrl"]))
+```
+
+But this link will still be valid:
+
+```{r}
+#| fenced: true
+#| output: asis
+cat(sprintf("View _%1$s_ in its [Google Photos album](%2$s){target='gphotos'}", 
+    dts[23, "mediaItems.description"],
+    dts[23,"mediaItems.productUrl"]))
+```
+
+
+#### Keeping a persistent version
+
+One way to share the photos is by selecting existing files, [creating shareable albums with the API](https://developers.google.com/photos/library/guides/share-media#rest) and downloading the shareableURL of the album and photos. I still haven't worked out the code for doing that in R.
+
+Another option is to just download the photos in the size needed for the session/website and share the `productUrl` to link back to the Google photos page for the image.
+
+For example we can visualise one photo with the `image_read` function in the `magick` library using the `baseUrl` attribute:
+
+```{r}
+oaxaca <- image_read(dts[1,"mediaItems.baseUrl"])
+print(oaxaca)
+```
+
+Or, we can download the image to an accessible folder. First we create the folder:
+
+```{r}
+here::i_am("Rcode/google-photos.qmd")
+img_folder <- here::here("Rcode","img")
+if (!dir.exists(img_folder))
+  dir.create(img_folder)
+
+```
+
+Now we use `download.file` to trigger the download if the file does not exist yet.
+
+```{r}
+photo <- slice(dts,16)
+
+durl <- sprintf("%s=w400-h400-d", 
+    photo$mediaItems.baseUrl)
+dfile <- sprintf("%s-%s.jpg", 
+    abbreviate(photo$mediaItems.id), str_replace_all(photo$mediaItems.description, 
+        "[ ,/]+", "-"))
+
+if (!file.exists(dfile))
+    download.file(url = durl, 
+    destfile = here::here(img_folder, dfile))
+
+```
+
+The downloaded image is now available locally:
+
+```{r}
+#| fenced: true
+#| output: asis
+cat(sprintf("![View _%1$s_ in its [Google Photos album](%2$s){target='gphotos'}](img/%3$s)", 
+    photo$mediaItems.description,
+    photo$mediaItems.productUrl,
+    dfile
+    ))
+```
+
+### Multiple fotos in multiple albums
+
+We can select multiple ids from multiple albums
+
+```{r}
+album_info <- getalbum$albums %>% select(id, title)
+
+lugares <- c("Lugares - México", "Lugares - Europa", "Lugares - Sur América", "Eventos - Venezuela")
+
+eventos <- c("Eventos - CEBA LEE", "Eventos - RLE", "Eventos - Venezuela", "Eventos - Mariposas", "Eventos - IVIC")
+
+aIDs <- album_info |> filter(title %in% c(lugares, eventos)) |> pull(id)
+```
+
+And use foreach to run an efficient loop:
+
+```{r}
+photos <- foreach(aID=aIDs, .combine = "bind_rows") %do% {
+  dts <-  POST("https://photoslibrary.googleapis.com/v1/mediaItems:search",
+      add_headers(
+        'Authorization' = authorization,
+        'Accept'  = 'application/json'),
+      body = list("albumId" = aID,
+                  "pageSize" = 50),
+      encode = "json"
+      ) |> 
+    content( as = "text", encoding = "UTF-8") |>
+    fromJSON( flatten = TRUE) |>
+    data.frame()
+  dts$album <- album_info |> 
+    filter(id %in% aID) |> pull(title)
+  dts <- dts |> 
+    mutate(
+      output_file = str_replace_all(mediaItems.description, "[ ,/]+", "-"),
+      output_id = abbreviate(mediaItems.id))
+  dts 
+}
+```
+
+Look how many photos we have now!
+
+```{r}
+glimpse(photos)
+```
+
+We can store this information in a `rds` file, but remember the `baseUrl` wont be valid next time we need them:
+```{r}
+#| eval: false
+file_name <- here::here("data","google-photos.rds")
+saveRDS(file=file_name, photos)
+```
+
+In the loop above we added some extra steps to create local file names so that we can locate the files and re-use them in our website:
+
+```{r}
+#| eval: false
+for (i in seq(along=photos$mediaItems.id)) {
+  photo <- photos %>% slice(i)
+  durl <- sprintf("%s=w400-h400-d", photo$mediaItems.baseUrl)
+  dfile <- sprintf("%s/%s-%s.jpg",img_folder, photo$output_id, photo$output_file)
+  if (!file.exists(dfile))
+    download.file(url=durl, destfile=dfile)
+}
+```
+
+
+## That's it!
+
+I think this code is now ready for using and reusing in other quarto- and R-projects.
+
+Cheers!

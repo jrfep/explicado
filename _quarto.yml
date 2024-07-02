@@ -1,0 +1,28 @@
+project:
+  type: website
+
+website:
+  title: "Explicado"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: R-code.qmd
+      - href: python-code.qmd
+      - href: web-frameworks.qmd
+      - href: mark-updown.qmd
+    right:
+      - about.qmd
+
+format:
+  html:
+    theme: 
+      dark: cyborg
+      light: flatly
+    highlight-style: a11y
+    css: styles.css
+    toc: true
+
+
+
+

@@ -1,0 +1,13 @@
+---
+title: "Explicado"
+subtitle: "My collection of explained code"
+---
+
+## Welcome!
+
+The post and contributions in this website summarise things I have learned to do with my favourite coding and markup languages. I have written these to keep track of ideas and solutions I have tried with variable success: some problems and pitfalls to avoid, some solutions to reuse, some outstanding challenges. 
+
+I try to include a good documentation of my steps, and as much details as possible to make the code reproducible. But it is always a challenge to find the time to describe everything, so you might encounter some work in progress or incomplete contributions here and there.  
+
+I hope the material that I do complete and share is useful to my future self and others.
+

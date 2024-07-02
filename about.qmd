@@ -1,0 +1,23 @@
+---
+title: "About"
+---
+
+This sites takes the name from a famous song attributed to [Cantalicio Luna](https://lesluthiers.org/verpersonaje.php?ID=162) and played by [Les Luthiers](https://lesluthiers.org/titulares.php). 
+
+### _Mi caballo es el mejor aunque a alguno esto le duela_
+
+This is a multilingual website, with contributions in Spanish, English and German as I see fit.
+
+### _Elegante ha de vestir el cantor de serenatas_
+
+This website has been created using [quarto](), and I am continuosly exploring features. Switch between my favourite dark mode and a light mode with the button on the top-right.
+
+### _El caballo en su corral, en su chiquero el chancho_
+
+I will include examples of code written in [R](R-code.qmd) and python here. Maybe other programming languagues will also find their way here, sooner or later.
+
+### _A la vera del fogón hay que ver la paisanada_
+
+I hope you enjoy your visit here!
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/W9fMdIWqaqU?si=ukQkeLJtMYZic2oU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>

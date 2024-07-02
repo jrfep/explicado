@@ -1,0 +1,8 @@
+---
+title: "R"
+subtitle: "scripts and tricks"
+listing: 
+ type: grid
+ categories: true
+ contents: Rcode
+---
